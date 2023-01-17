@@ -33,6 +33,7 @@ public class MelonMap {
    }
 
    private static final float DEFAULT_LOAD_FACTOR = 0.75F;
+   private static final int MAX_TREE_THRESHOLD = 7;
 
    private Melon[] melons;
    private int capacity;
@@ -47,6 +48,10 @@ public class MelonMap {
    public MelonMap(int capacity) {
       this.capacity = capacity <= 0 ? 16 : capacity;
       melons = new Melon[this.capacity];
+   }
+
+   public boolean contains(String key) {
+      return get(key) != null;
    }
 
    public MelonMap put(String key, Object value) {
@@ -69,15 +74,17 @@ public class MelonMap {
          if (melon.kHash == kHash) {
             melons[index] = newMelon;
          } else if (melon == melon.getRoot() && melon.left == null)
-            (newMelon.left = melon).parent = newMelon;
+            // keep the right side to the
+            // most recently accessed elements
+            (newMelon.right = melon).parent = newMelon;
          else {
-            if (melon.right == null) {
+            if (melon.left == null) {
                // TODO:
                // to few tests on this
 
                Melon parent = melon.parent;
                // the root node
-               (parent.right = newMelon).parent = parent;
+               (parent.left = newMelon).parent = parent;
                exchange(parent, newMelon);
 
                melons[index] = parent;
@@ -165,6 +172,10 @@ public class MelonMap {
          return;
       melon = melon.getRoot();
 
+      deleteRoot(index, melon);
+   }
+
+   private void deleteRoot(int index, Melon melon) {
       Melon left = melon.left, right = melon.right;
       if (left == null && right == null)
          melons[index] = null;
@@ -201,25 +212,45 @@ public class MelonMap {
       Melon melon = melons[index];
       if (melon == null)
          return null;
-      if (kHash == melon.kHash)
-         return splay(melon, index);
       if (melon.parent != null)
          melon = melon.getRoot();
-      return splay(getVal(kHash, melon), index);
+      int nowCap = capacity;
+      melon = getVal(kHash, melon, 0);
+
+      splay(melon, index);
+      if (nowCap != this.capacity)
+         untreeify(melon, index);
+      return melon;
    }
 
-   private static Melon getVal(int kHash, Melon melon) {
-      if (kHash == melon.kHash)
+   private void untreeify(Melon melon, int index) {
+      deleteRoot(index, melon);
+      melon.left = null;
+      melon.right = null;
+
+      int kHash = melon.kHash;
+      put(melon.val, kHash, indexOfHash(kHash));
+   }
+
+   private Melon getVal(int kHash, Melon melon, int lenTravelled) {
+      if (kHash == melon.kHash) {
+         if (lenTravelled == MAX_TREE_THRESHOLD) {
+            // collision is mostly caused by lack
+            // of space
+            resize();
+         }
          return melon;
-      Melon val = melon.right != null ? getVal(kHash, melon.right) : null;
+      }
+      lenTravelled++;
+      Melon val = melon.right != null ? getVal(kHash, melon.right, lenTravelled) : null;
       if (val == null && melon.left != null)
-         val = getVal(kHash, melon.left);
+         val = getVal(kHash, melon.left, lenTravelled);
       return val;
    }
 
-   public Melon splay(Melon melon, int index) {
+   public void splay(Melon melon, int index) {
       if (melon == null)
-         return null;
+         return;
       Melon root = melon.getRoot();
       if (melon.parent == root) {
          if (root.right == melon) {
@@ -242,7 +273,6 @@ public class MelonMap {
                (gParent.right = melon).parent = gParent;
          }
       }
-      return melon;
    }
 
    private static void leftDownRotation(Melon melon, Melon parent) {
