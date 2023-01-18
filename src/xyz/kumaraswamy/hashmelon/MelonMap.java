@@ -11,6 +11,8 @@ public class MelonMap {
 
       public Melon parent;
 
+      public int visits;
+
       public Melon(Object val, int kHash) {
          this.val = val;
          this.kHash = kHash;
@@ -32,13 +34,18 @@ public class MelonMap {
       }
    }
 
-   private static final float DEFAULT_LOAD_FACTOR = 0.75F;
-   private static final int MAX_TREE_THRESHOLD = 7;
+   private static final float DEFAULT_LOAD_FACTOR = 0.75f;
+   private static final int MAX_DEPTH_THRESHOLD = 7;
+
+   // the maximum number of times
+   // an element in the tree can be visited
+   private static final int MAX_VISIT_THRESHOLD = 55;
 
    private Melon[] melons;
    private int capacity;
 
    private int lenAll = 0;
+   private int timesResized = 0;
 
    public MelonMap() {
       melons = new Melon[16];
@@ -118,6 +125,9 @@ public class MelonMap {
 
    private void resize() {
       int newCap = capacity * 2;
+      int mulResize = 70;
+      if (++timesResized % mulResize == 0)
+         newCap *= 3;
 
       Melon[] oldTable = this.melons;
 
@@ -222,16 +232,18 @@ public class MelonMap {
    }
 
    private Melon getVal(int kHash, Melon melon, int lenTravelled) {
-      if (lenTravelled == MAX_TREE_THRESHOLD) {
+      if (lenTravelled++ == MAX_DEPTH_THRESHOLD
+              || (++melon.visits == MAX_VISIT_THRESHOLD
+              && melon.parent != null)) {
          // collision is mostly caused by lack
          // of space
          resize();
          disconnect(melon);
+
+         melon.visits = 0;
       }
-      if (kHash == melon.kHash) {
+      if (kHash == melon.kHash)
          return melon;
-      }
-      lenTravelled++;
       Melon val = melon.right != null ? getVal(kHash, melon.right, lenTravelled) : null;
       if (val == null && melon.left != null)
          val = getVal(kHash, melon.left, lenTravelled);

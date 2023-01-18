@@ -146,4 +146,9 @@ class MelonMapTest {
       System.out.println(melonMap.get("1"));
       System.out.println(melonMap.getNode("1").getRoot());
    }
+
+   @Test
+   public void performanceTest() {
+      
+   }
 }
