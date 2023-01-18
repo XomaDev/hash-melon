@@ -69,10 +69,11 @@ public class MelonMap {
       boolean isNull = melon == null;
 
       Melon newMelon = new Melon(value, kHash);
+      // may not be the endpoint
 
       if (!isNull) {
          if (melon.kHash == kHash) {
-            melons[index] = newMelon;
+            melons[index] = newMelon; // overwrite
          } else if (melon == melon.getRoot() && melon.left == null)
             // keep the right side to the
             // most recently accessed elements
@@ -89,7 +90,7 @@ public class MelonMap {
 
                melons[index] = parent;
             } else {
-               // so now both melon.{right && left} are null
+               // so now both melon.{right && left} are not null
                // right values are always recent
 
                Melon nxtLeftOfHead = melon.right;
@@ -104,6 +105,7 @@ public class MelonMap {
                   (melon.left = melonRight.right).parent = melon;
                   melonRight.right = null;
                }
+               // null point when index = 1
                (newMelon.left = nxtLeftOfHead).parent = newMelon;
                (newMelon.right = melon).parent = newMelon;
 
@@ -116,12 +118,12 @@ public class MelonMap {
 
    private void resize() {
       int newCap = capacity * 2;
-      
+
       Melon[] oldTable = this.melons;
-      
+
       melons = new Melon[newCap];
       this.capacity = newCap;
-      
+
       for (Melon tab : oldTable)
          if (tab != null)
             transferAllOfTab(tab.getRoot());
@@ -153,11 +155,11 @@ public class MelonMap {
 
    public Melon getNode(String key) {
       // for testing purpose
-      return melons[indexOfHash(Hashmelon.DEFAULT_HASH_CODE_HANDLE.hashCode(key))];
+      return melons[indexOfHash(Hashmelon.hashCode(key))];
    }
 
    public Object get(String key) {
-      int kHash = Hashmelon.DEFAULT_HASH_CODE_HANDLE.hashCode(key);
+      int kHash = Hashmelon.hashCode(key);
       Melon melon = getMelon(kHash, indexOfHash(kHash));
       return melon == null ? null : melon.val;
    }
@@ -185,7 +187,7 @@ public class MelonMap {
          (melons[index] = left).parent = null;
       else if (left == null)
          (melons[index] = right).parent = null;
-      else  {
+      else {
          /**                                            5
           *                                            / \
           *     7             5                      /    \
@@ -196,7 +198,7 @@ public class MelonMap {
           *                                      /  \
           *                                    2    28
           */
-         for (Melon lOfR = right.left, p = right;;) {
+         for (Melon lOfR = right.left, p = right; ; ) {
             if (lOfR == null) {
                (p.right = left).parent = p;
                break;
@@ -214,31 +216,19 @@ public class MelonMap {
          return null;
       if (melon.parent != null)
          melon = melon.getRoot();
-      int nowCap = capacity;
       melon = getVal(kHash, melon, 0);
-
       splay(melon, index);
-      if (nowCap != this.capacity)
-         untreeify(melon, index);
       return melon;
    }
 
-   private void untreeify(Melon melon, int index) {
-      deleteRoot(index, melon);
-      melon.left = null;
-      melon.right = null;
-
-      int kHash = melon.kHash;
-      put(melon.val, kHash, indexOfHash(kHash));
-   }
-
    private Melon getVal(int kHash, Melon melon, int lenTravelled) {
+      if (lenTravelled == MAX_TREE_THRESHOLD) {
+         // collision is mostly caused by lack
+         // of space
+         resize();
+         disconnect(melon);
+      }
       if (kHash == melon.kHash) {
-         if (lenTravelled == MAX_TREE_THRESHOLD) {
-            // collision is mostly caused by lack
-            // of space
-            resize();
-         }
          return melon;
       }
       lenTravelled++;
@@ -248,8 +238,23 @@ public class MelonMap {
       return val;
    }
 
+   /**
+    * Disconnects and node from the parent
+    * to move it to a new index in the table
+    */
+   private void disconnect(Melon melon) {
+      Melon parent = melon.parent;
+      if (parent == null) return;
+
+      if (parent.right == melon) parent.right = null;
+      else if (parent.left == melon) parent.left = null;
+
+      int kHash = melon.kHash;
+      put(melon.val, kHash, indexOfHash(kHash));
+   }
+
    public void splay(Melon melon, int index) {
-      if (melon == null)
+      if (melon == null || melons[index] == null) // the node can be moved
          return;
       Melon root = melon.getRoot();
       if (melon.parent == root) {

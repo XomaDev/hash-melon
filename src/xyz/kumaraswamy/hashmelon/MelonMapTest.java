@@ -126,4 +126,24 @@ class MelonMapTest {
               .put("d", 4);
       System.out.println(melonMap.getNode("a"));
    }
+
+   @Test
+   public void depthTest() {
+//      MelonMap melonMap = new MelonMap(3)
+//              .put("a", 1)
+//              .put("b", 2)
+//              .put("c", 3)
+//              .put("d", 4);
+//      MelonMap.Melon melon = melonMap.getNode("a");
+//
+//      System.out.println("depth = " + melon.depth());
+
+      MelonMap melonMap = new MelonMap();
+      for (int i = 0; i < 100; i++) {
+         melonMap.put(i + "", i);
+      }
+      System.out.println(melonMap.getNode("1").getRoot());
+      System.out.println(melonMap.get("1"));
+      System.out.println(melonMap.getNode("1").getRoot());
+   }
 }
